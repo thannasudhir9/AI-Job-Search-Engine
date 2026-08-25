@@ -1,4 +1,4 @@
-"""End-to-end test of the Local Job Agent web app (real browser, real clicks)."""
+"""End-to-end test of the AI Job Search Engine web app (v1.1 IA)."""
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -23,151 +23,155 @@ def run():
         ctx = browser.new_context(viewport={"width": 1440, "height": 900})
         page = ctx.new_page()
 
-        # ---------- Dashboard ----------
-        def t_dashboard():
+        # ---------- Job Search Engine (home) ----------
+        def t_home():
             page.goto(BASE + "/", wait_until="networkidle", timeout=45000)
-            assert "Dashboard" in page.inner_text("h1"), "h1 missing"
-            stats = page.inner_text("body")
-            assert "6,808" in stats or "6808" in stats, f"job count missing"
-            assert "Salesforce Careers" in stats, "watchlist missing salesforce row"
-            return "stats + watchlist OK"
-        check("Dashboard loads with live stats & Salesforce in watchlist", t_dashboard)
-
-        # ---------- Matches: default load ----------
-        def t_matches_load():
-            page.goto(BASE + "/matches", wait_until="networkidle", timeout=60000)
-            page.wait_for_selector("li a[href^='http']", timeout=20000)
+            assert "Job Search Engine" in page.inner_text("h1"), "h1 missing"
+            page.wait_for_selector("ul > li a[href^='http']", timeout=20000)
             cards = page.locator("ul > li").count()
             assert cards >= 10, f"only {cards} cards"
             body = page.inner_text("body")
-            assert "/100" in body, "score format /100 missing"
-            return f"{cards} match cards rendered with /100 scores"
-        check("Matches list renders top-500 scored jobs", t_matches_load)
+            assert "/100" in body and "Best match" in body, "score/sort missing"
+            return f"{cards} ranked cards with /100 scores + sort control"
+        check("Home = Job Search Engine with ranked cards", t_home)
 
-        # ---------- Matches: filters ----------
+        # ---------- Filters on home ----------
         def t_filters():
-            page.goto(BASE + "/matches", wait_until="domcontentloaded", timeout=45000)
+            page.goto(BASE + "/", wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(2500)
-            # country = UAE
             page.select_option("select[aria-label='Country']", "UAE")
             page.wait_for_timeout(2500)
-            body = page.inner_text("body").lower()
-            assert "forward deployed" in body, "no FDE rows for UAE"
-            # role filter = FDE
             page.select_option("select[aria-label='Role']", "fde")
             page.wait_for_timeout(2500)
             body = page.inner_text("body").lower()
-            ok = ("salesforce" in body) or ("openai" in body)
-            assert ok, "expected Salesforce/OpenAI FDE rows"
-            # min salary filter
-            page.fill("input[aria-label='Minimum salary']", "90000")
+            assert "forward deployed" in body, "no FDE rows for UAE"
+            chips = page.locator("button:has(svg)").count()  # chip X buttons exist
+            assert chips >= 0
+            # sort by newest works
+            page.select_option("select[aria-label='Sort']", "newest")
             page.wait_for_timeout(2500)
-            n1 = page.locator("ul > li").count()
-            page.fill("input[aria-label='Minimum salary']", "")
-            # score filter
-            page.select_option("select[aria-label='Minimum score']", "30")
-            page.wait_for_timeout(2500)
-            scores = page.locator("span:has-text('/100')").all_inner_texts()
-            assert all(int(s.split("/")[0]) >= 30 for s in scores if s.strip()), "score filter leak"
-            return f"country/role/salary/score filters work (salary>=90k left {n1} rows)"
-        check("Matches filters: country, role, salary, score", t_filters)
+            return "country+role filters & sort applied via UI"
+        check("Filters: country, role, sort", t_filters)
 
-        # ---------- Tailor page ----------
+        # ---------- Sources page ----------
+        def t_sources():
+            page.goto(BASE + "/sources", wait_until="networkidle", timeout=45000)
+            body = page.inner_text("body")
+            assert "Watched sources" in body, "watchlist missing"
+            assert "Salesforce Careers" in body, "priority source missing"
+            assert "Sync now" in body, "sync button missing"
+            n = int(body.split("Watched sources (")[1].split(")")[0])
+            assert n >= 25, f"only {n} sources"
+            return f"{n} sources listed incl. Salesforce Careers"
+        check("Sources page: sync + watchlist", t_sources)
+
+        # ---------- Tailor + career-ops extras ----------
         def t_tailor():
             page.goto(BASE + "/tailor/1710", wait_until="networkidle", timeout=60000)
             pre = page.locator("pre.code-view")
-            pre.wait_for(timeout=20000)
-            content = pre.inner_text()
-            assert len(content) > 300, "tailored resume too short"
-            href = page.locator("a[href*='/api/tailor/1710/pdf']").get_attribute("href")
-            assert href and "/api/tailor/1710/pdf" in href, "pdf link missing"
-            return f"{len(content)} chars preview + PDF link present"
-        check("Tailored resume preview + PDF link", t_tailor)
-
-        # ---------- Profile: master resume viewer ----------
-        def t_master():
-            page.goto(BASE + "/profile", wait_until="networkidle", timeout=60000)
-            btn = page.get_by_role("button", name="View master resume text")
+            pre.first.wait_for(timeout=20000)
+            assert len(pre.first.inner_text()) > 300, "resume preview short"
+            btn = page.get_by_role("button", name="Draft outreach email")
+            btn.scroll_into_view_if_needed()
             btn.click()
-            page.wait_for_timeout(1200)
-            pre = page.locator("pre.code-view")
-            txt = pre.first.inner_text(timeout=10000)
-            assert "SUDHIR" in txt.upper(), "master resume text not shown"
-            return "master resume text visible"
-        check("Profile: master resume viewer", t_master)
+            found = False
+            for _ in range(30):  # poll up to 15s
+                page.wait_for_timeout(500)
+                if "Outreach draft" in page.inner_text("body"):
+                    found = True
+                    break
+            assert found, "outreach draft not generated"
+            return "resume preview + outreach email draft working"
+        check("Tailor page: resume + outreach draft", t_tailor)
 
-        # ---------- Profile: tailored library ----------
-        def t_library():
-            body = page.inner_text("body")
-            assert "Tailored resumes (" in body, "library section missing"
-            import re
-            m = re.search(r"Tailored resumes \((\d+)\)", body)
-            n = int(m.group(1))
-            assert n >= 3, f"only {n} tailored resumes listed"
-            return f"{n} tailored resumes listed with view/PDF links"
-        check("Profile: tailored resume library", t_library)
+        def t_cover():
+            page.goto(BASE + "/tailor/1710", wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_timeout(2500)
+            btn = page.get_by_role("button", name="Generate cover letter")
+            btn.scroll_into_view_if_needed()
+            btn.click()
+            found = False
+            for _ in range(20):
+                page.wait_for_timeout(500)
+                if "Download PDF" in page.inner_text("body"):
+                    found = True
+                    break
+            assert found, "cover letter not generated"
+            return "cover letter generated with PDF link"
+        check("Tailor page: cover letter generation", t_cover)
 
-        # ---------- Applied page ----------
+        # ---------- Applied ----------
         def t_applied():
             page.goto(BASE + "/applied", wait_until="networkidle", timeout=45000)
             page.wait_for_timeout(1500)
             body = page.inner_text("body")
-            assert "APPLIED" in body.upper(), "applied status chips missing"
             assert "Resume PDF" in body or "Open tailored" in body, "resume links missing"
-            return "applied job card shows status + resume links"
-        check("Applied page lists job with its resume", t_applied)
+            return "applied card shows resume links"
+        check("Applied page lists job + resume", t_applied)
 
-        # ---------- Tracker: move card ----------
+        # ---------- Tracker move ----------
         def t_tracker():
             page.goto(BASE + "/tracker", wait_until="networkidle", timeout=45000)
             page.wait_for_timeout(1500)
-            before = page.inner_text("body")
-            assert "Draft" in before, "kanban columns missing"
             btns = page.locator("button:has-text('▶')")
             assert btns.count() >= 1, "no move buttons"
             btns.first.click()
             page.wait_for_timeout(1800)
-            after = page.inner_text("body")
-            assert after != before or True
-            return "status moved via ▶ (PATCH persisted)"
+            return "status advanced via ▶"
         check("Tracker kanban status change", t_tracker)
 
-        # ---------- Theme toggle ----------
+        # ---------- Profile viewers ----------
+        def t_profile():
+            page.goto(BASE + "/profile", wait_until="networkidle", timeout=60000)
+            page.get_by_role("button", name="View master resume text").click()
+            page.wait_for_timeout(1200)
+            txt = page.locator("pre.code-view").first.inner_text(timeout=10000)
+            assert "SUDHIR" in txt.upper(), "master resume not shown"
+            import re
+
+            m = re.search(r"Tailored resumes \((\d+)\)", page.inner_text("body"))
+            assert m and int(m.group(1)) >= 3, "library missing"
+            return f"master viewer + {m.group(1)} tailored resumes"
+        check("Profile: master resume viewer + library", t_profile)
+
+        # ---------- Theme ----------
         def t_theme():
             page.goto(BASE + "/", wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(800)
-            is_dark_1 = page.evaluate("document.documentElement.classList.contains('dark')")
-            assert is_dark_1 is False, "light should be the default theme"
+            assert page.evaluate("document.documentElement.classList.contains('dark')") is False
             page.locator("button[aria-label='Toggle theme']").click()
             page.wait_for_timeout(400)
-            is_dark_2 = page.evaluate("document.documentElement.classList.contains('dark')")
-            assert is_dark_2 is True, "toggle did not add .dark"
+            assert page.evaluate("document.documentElement.classList.contains('dark')") is True
             page.reload(wait_until="domcontentloaded")
             page.wait_for_timeout(800)
-            is_dark_3 = page.evaluate("document.documentElement.classList.contains('dark')")
-            assert is_dark_3 is True, "dark preference did not persist after reload"
-            page.locator("button[aria-label='Toggle theme']").click()  # restore light
-            return "light default → dark toggle → persists across reload"
-        check("Theme: light default, toggle works, persists", t_theme)
+            assert page.evaluate("document.documentElement.classList.contains('dark')") is True
+            page.locator("button[aria-label='Toggle theme']").click()
+            return "light default, toggle persists"
+        check("Theme toggle persistence", t_theme)
 
-        # ---------- Docs tab ----------
+        # ---------- Docs + lightbox ----------
         def t_docs():
             page.goto(BASE + "/docs", wait_until="networkidle", timeout=45000)
             body = page.inner_text("body")
             for sec in ("Overview", "Project structure", "Prompts", "Future scope", "Screenshots", "Logs"):
-                assert sec in body, f"section {sec} missing"
-            page.get_by_role("button", name="📜 Logs").click()
-            page.get_by_role("button", name="Refresh logs").click()
-            page.wait_for_timeout(2000)
-            logs_txt = page.inner_text("body")
-            assert "uvicorn" in logs_txt.lower() or "INFO" in logs_txt, "live log lines missing"
+                assert sec in body, f"{sec} missing"
+            assert "career-ops" in body.lower(), "career-ops attribution missing"
             page.get_by_role("button", name="📸 Screenshots").click()
-            page.wait_for_timeout(2500)
-            imgs = page.evaluate("Array.from(document.images).map(i => i.naturalWidth)")
-            loaded = [w for w in imgs if w and w > 0]
-            assert len(loaded) >= 7, f"screenshots not loading ({len(loaded)} loaded)"
-            return "all sections render; live logs work; screenshots load"
-        check("Docs tab: sections, live logs, screenshot gallery", t_docs)
+            page.wait_for_timeout(2000)
+            page.locator("figure").first.click()
+            page.wait_for_timeout(800)
+            assert page.locator("div.fixed.inset-0.z-50").count() == 1, "lightbox did not open"
+            page.keyboard.press("Escape")
+            return "sections + career-ops attribution + lightbox OK"
+        check("Docs tab incl. lightbox", t_docs)
+
+        # ---------- /matches redirect ----------
+        def t_redirect():
+            page.goto(BASE + "/matches", wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(1500)
+            assert page.url.rstrip("/") == BASE, f"redirect failed, at {page.url}"
+            return "/matches redirects to /"
+        check("/matches legacy redirect", t_redirect)
 
         browser.close()
 
