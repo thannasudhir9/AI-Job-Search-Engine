@@ -1,0 +1,23 @@
+# dependencies / builds
+node_modules/
+.next/
+out/
+.venv/
+__pycache__/
+*.pyc
+.vercel
+
+# PRIVATE DATA — never publish
+backend/data/
+scripts/.linkedin-profile/
+scripts/.linkedin-state.json
+*.db
+
+# local runtime artifacts
+*.log
+.env*
+pw_install*.log
+
+# scaffolding noise
+frontend/AGENTS.md
+frontend/CLAUDE.md
