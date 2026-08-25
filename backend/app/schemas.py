@@ -67,6 +67,8 @@ class JobOut(BaseModel):
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
     salary_currency: Optional[str] = None
+    scam_flags: list[str] = []
+    work_auth_flags: list[str] = []
 
 
 class TailorOut(BaseModel):

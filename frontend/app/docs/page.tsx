@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const LAST_UPDATED = "2026-08-25 22:53 CEST";
+const LAST_UPDATED = "2026-08-25 23:45 CEST";
 
 /* ------------------------------------------------------------------ */
 /* Documentation content                                               */
@@ -25,6 +25,12 @@ An AI job-hunt agent that runs entirely on your machine:
             with the exact tailored resume that was sent.
 
 Built for FDE / Technical Architect / PM roles across DE / NL / CH / UAE.
+
+CAREER-OPS INSPIRED FEATURES (github.com/santifer/career-ops)
+- Posting-legitimacy flags (scam / ghost-job pattern detection) on every card.
+- Work-auth / sponsorship signals flagged from posting text.
+- One-click COVER LETTER generation per job (PDF).
+- Recruiter OUTREACH EMAIL drafts with copy-to-clipboard (draft-only).
 
 QUICK START
     powershell -ExecutionPolicy Bypass -File .\\start.ps1
@@ -148,15 +154,15 @@ const FUTURE = `# Future scope / roadmap
 type LogFile = { file: string; exists: boolean; lines: string[]; total_lines?: number };
 
 const SCREENSHOTS: { src: string; caption: string }[] = [
-  { src: "/screenshots/dashboard-light.png", caption: "Dashboard — live stats, board sync, watchlist" },
-  { src: "/screenshots/matches-light.png", caption: "Matches — scored /100, country · role · salary · company filters" },
-  { src: "/screenshots/tailor-light.png", caption: "Tailored resume preview with PDF download" },
+  { src: "/screenshots/search-engine-light.png", caption: "Job Search Engine — ranked matches, filters, sort" },
+  { src: "/screenshots/sources-light.png", caption: "Sources — sync + 27 watched job sources" },
+  { src: "/screenshots/tailor-light.png", caption: "Tailored resume + cover letter + outreach draft" },
   { src: "/screenshots/applied-light.png", caption: "Applied jobs with the exact resume used" },
   { src: "/screenshots/tracker-light.png", caption: "Application tracker kanban" },
   { src: "/screenshots/profile-light.png", caption: "Profile — master resume viewer + tailored library" },
   { src: "/screenshots/docs-light.png", caption: "Documentation tab" },
-  { src: "/screenshots/dashboard-dark.png", caption: "Dashboard — dark theme" },
-  { src: "/screenshots/matches-dark.png", caption: "Matches — dark theme" },
+  { src: "/screenshots/search-engine-dark.png", caption: "Job Search Engine — dark theme" },
+  { src: "/screenshots/applied-dark.png", caption: "Applied view — dark theme" },
 ];
 
 const SECTIONS = [

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { api, JobMatch, pdfUrl } from "@/lib/api";
+import { toast } from "sonner";
+import { api, pdfUrl } from "@/lib/api";
 
 export default function TailorPage() {
   const params = useParams<{ jobId: string }>();
@@ -11,9 +12,14 @@ export default function TailorPage() {
 
   const [content, setContent] = useState("");
   const [model, setModel] = useState("");
-  const [job, setJob] = useState<JobMatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // career-ops style extras
+  const [cover, setCover] = useState<{ content: string; model: string; pdf_url: string } | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [email, setEmail] = useState<{ subject: string; body: string; model: string } | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
 
   const generate = useCallback(
     async (force: boolean) => {
@@ -32,14 +38,39 @@ export default function TailorPage() {
     [jobId],
   );
 
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobCompany, setJobCompany] = useState("");
+  const [jobLocation, setJobLocation] = useState("");
+
   useEffect(() => {
     (async () => {
       try {
-        setJob((await api.job(jobId)) as JobMatch);
+        const j = await api.job(jobId);
+        setJobTitle(j.title);
+        setJobCompany(j.company_name);
+        setJobLocation(j.location);
       } catch { /* non-fatal */ }
       await generate(false);
     })();
   }, [jobId, generate]);
+
+  const genCover = async () => {
+    setCoverBusy(true);
+    try {
+      setCover(await api.coverLetter(jobId));
+      toast.success("Cover letter ready");
+    } catch (e) { toast.error((e as Error).message); }
+    setCoverBusy(false);
+  };
+
+  const genEmail = async () => {
+    setEmailBusy(true);
+    try {
+      setEmail(await api.outreachEmail(jobId));
+      toast.success("Outreach draft ready");
+    } catch (e) { toast.error((e as Error).message); }
+    setEmailBusy(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -48,10 +79,10 @@ export default function TailorPage() {
           <Link href="/matches" className="text-sm text-indigo-500 hover:text-indigo-400">
             ← Back to matches
           </Link>
-          <h1 className="text-2xl font-semibold mt-1">{job?.title ?? `Job #${jobId}`}</h1>
+          <h1 className="text-2xl font-semibold mt-1">{jobTitle || `Job #${jobId}`}</h1>
           <p className="muted text-sm mt-0.5">
-            {job?.company_name}
-            {job?.location ? ` · ${job.location}` : ""}
+            {jobCompany}
+            {jobLocation ? ` · ${jobLocation}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -84,9 +115,57 @@ export default function TailorPage() {
       {loading && <p className="muted">Generating tailored resume…</p>}
 
       {content && (
-        <pre className="code-view whitespace-pre-wrap rounded-xl p-6 text-sm leading-relaxed font-mono max-h-[65vh] overflow-auto">
+        <section className="space-y-4">
+          <pre className="code-view whitespace-pre-wrap rounded-xl p-6 text-sm leading-relaxed font-mono max-h-[55vh] overflow-auto">
 {content}
-        </pre>
+          </pre>
+
+          {/* career-ops style extras */}
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={genCover} disabled={coverBusy} className="btn-ghost inline-flex items-center gap-2">
+              ✉ {coverBusy ? "Writing…" : "Generate cover letter"}
+            </button>
+            <button onClick={genEmail} disabled={emailBusy} className="btn-ghost inline-flex items-center gap-2">
+              📧 {emailBusy ? "Drafting…" : "Draft outreach email"}
+            </button>
+          </div>
+
+          {cover && (
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="font-semibold">✉ Cover letter <span className="chip ml-1">{cover.model}</span></h3>
+                <a href={`http://localhost:8000${cover.pdf_url}`} target="_blank" rel="noreferrer" className="btn-primary !py-1.5 !text-xs">
+                  Download PDF ↗
+                </a>
+              </div>
+              <pre className="code-view whitespace-pre-wrap rounded-lg p-4 text-xs leading-relaxed max-h-72 overflow-auto font-mono">
+{cover.content}
+              </pre>
+            </div>
+          )}
+
+          {email && (
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="font-semibold">📧 Outreach draft <span className="chip ml-1">{email.model}</span></h3>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`Subject: ${email.subject}\n\n${email.body}`);
+                    toast.success("Email copied to clipboard");
+                  }}
+                  className="btn-primary !py-1.5 !text-xs"
+                >
+                  Copy to clipboard
+                </button>
+              </div>
+              <p className="text-sm"><strong>Subject:</strong> {email.subject}</p>
+              <pre className="code-view whitespace-pre-wrap rounded-lg p-4 text-xs leading-relaxed max-h-72 overflow-auto font-mono">
+{email.body}
+              </pre>
+              <p className="muted text-[11px]">Draft only — nothing is sent automatically.</p>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

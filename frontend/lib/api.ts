@@ -27,6 +27,8 @@ export interface JobMatch {
   salary_min: number | null;
   salary_max: number | null;
   salary_currency: string | null;
+  scam_flags: string[];
+  work_auth_flags: string[];
 }
 
 export interface CompanyRow {
@@ -35,6 +37,7 @@ export interface CompanyRow {
   source: string;
   slug: string;
   enabled: boolean;
+  priority?: boolean;
   last_synced_at: string | null;
   job_count: number;
 }
@@ -121,6 +124,7 @@ export const api = {
       company?: string;
       min_salary?: number;
       min_score?: number;
+      sort?: string;
     } = {},
   ) => {
     const qs = new URLSearchParams();
@@ -130,6 +134,7 @@ export const api = {
     if (params.company) qs.set("company", params.company);
     if (params.min_salary) qs.set("min_salary", String(params.min_salary));
     if (params.min_score) qs.set("min_score", String(params.min_score));
+    if (params.sort && params.sort !== "score") qs.set("sort", params.sort);
     return req<JobMatch[]>(`/api/matches?${qs.toString()}`);
   },
   facets: () =>
@@ -156,6 +161,14 @@ export const api = {
   tailor: (jobId: number, force = false) =>
     req<{ job_id: number; content: string; model: string; pdf_url: string }>(
       `/api/tailor/${jobId}?force=${force}`, { method: "POST" },
+    ),
+  coverLetter: (jobId: number) =>
+    req<{ job_id: number; content: string; model: string; pdf_url: string }>(
+      `/api/cover/${jobId}`, { method: "POST" },
+    ),
+  outreachEmail: (jobId: number) =>
+    req<{ job_id: number; subject: string; body: string; model: string }>(
+      `/api/outreach/${jobId}`, { method: "POST" },
     ),
   applications: () => req<ApplicationRow[]>("/api/applications"),
   updateApplication: (id: number, patch: { status?: string; notes?: string }) =>

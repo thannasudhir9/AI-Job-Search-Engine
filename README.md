@@ -27,11 +27,11 @@ and tracks every application.
 All captures live in [`frontend/public/screenshots/`](frontend/public/screenshots/) and are also
 viewable in-app under **Docs ▸ Screenshots** (click to magnify, scroll, arrow-key through).
 
-| Dashboard | Matches |
+| Job Search Engine (home) | Sources |
 |---|---|
-| ![Dashboard](frontend/public/screenshots/dashboard-light.png) | ![Matches](frontend/public/screenshots/matches-light.png) |
+| ![Job Search Engine](frontend/public/screenshots/search-engine-light.png) | ![Sources](frontend/public/screenshots/sources-light.png) |
 
-| Tailored resume | Applied jobs |
+| Tailored resume + cover letter + outreach | Applied jobs |
 |---|---|
 | ![Tailor](frontend/public/screenshots/tailor-light.png) | ![Applied](frontend/public/screenshots/applied-light.png) |
 
@@ -41,7 +41,7 @@ viewable in-app under **Docs ▸ Screenshots** (click to magnify, scroll, arrow-
 
 | Documentation tab | Dark theme |
 |---|---|
-| ![Docs](frontend/public/screenshots/docs-light.png) | ![Dark](frontend/public/screenshots/matches-dark.png) |
+| ![Docs](frontend/public/screenshots/docs-light.png) | ![Dark](frontend/public/screenshots/search-engine-dark.png) |
 
 *Captured 2026-08-25 with Playwright (`scripts/dev/screenshot.py`).*
 
@@ -107,6 +107,12 @@ they are gitignored and stay local. The only outbound calls are to public job-bo
 
 ## 📅 Changelog
 
+- **2026-08-25 (v1.1)** — app lands directly on the **Job Search Engine**; UI overhaul with
+  lucide-react icons, framer-motion animations, sonner toasts, skeleton loaders, sort by
+  score/newest/salary, active-filter chips; new **Sources** page; Dubai sources added
+  (Rain, Ziina, LinkedIn Salesforce-UAE searches); **career-ops inspired** features:
+  scam/ghost-job legitimacy flags, work-auth signals, cover-letter generator (PDF),
+  recruiter outreach email drafts.
 - **2026-08-25** — v1.0: full pipeline live (find → match → tailor → track), filters incl.
   score/country/role/salary/company, light/dark themes, Docs tab w/ live logs + zoomable
   screenshots, Salesforce Careers priority feed, LinkedIn public-search sources,

@@ -9,6 +9,7 @@ from ..services.matching import recompute_matches
 from ..utils import (
     COUNTRY_RULES,
     ROLE_RULES,
+    content_flags,
     country_of,
     currency_for_country,
     role_family,
@@ -40,6 +41,7 @@ def get_matches(
     role: str = "",
     company: str = "",
     min_salary: int = 0,
+    sort: str = Query("score", description="score | newest | salary"),
     db: Session = Depends(get_db),
 ):
     """Score-ordered matches. All filtering happens in SQL; max `limit` rows leave the DB."""
@@ -66,12 +68,17 @@ def get_matches(
             func.coalesce(Job.salary_max, Job.salary_min, 0) >= min_salary
         )
 
-    rows = (
-        query.order_by(Match.score.desc(), Job.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    if sort == "newest":
+        query = query.order_by(Job.posted_at.desc().nullslast(), Job.created_at.desc())
+    elif sort == "salary":
+        query = query.order_by(
+            func.coalesce(Job.salary_max, Job.salary_min, 0).desc(),
+            Match.score.desc(),
+        )
+    else:
+        query = query.order_by(Match.score.desc(), Job.created_at.desc())
+
+    rows = query.offset(offset).limit(limit).all()
 
     # single lookup instead of one query per row (was the page-load bottleneck)
     applied_ids = {jid for (jid,) in db.query(Application.job_id).all()}
@@ -79,6 +86,7 @@ def get_matches(
     out = []
     for job, m in rows:
         ctry = country_of(job.location)
+        scam, work_auth = content_flags(job.title, job.description)
         out.append(
             JobOut(
                 id=job.id,
@@ -97,6 +105,8 @@ def get_matches(
                 salary_min=job.salary_min,
                 salary_max=job.salary_max,
                 salary_currency=job.salary_currency or currency_for_country(ctry),
+                scam_flags=scam,
+                work_auth_flags=work_auth,
             )
         )
     return out

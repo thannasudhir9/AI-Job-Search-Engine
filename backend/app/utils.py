@@ -109,3 +109,33 @@ def extract_salary(text: str | None) -> tuple[int | None, int | None, str | None
 
 def currency_for_country(country: str | None) -> str | None:
     return CURRENCY_BY_COUNTRY.get(country or "", None)
+
+
+# ---- posting-legitimacy & eligibility signals (career-ops inspired) ----
+
+SCAM_RULES = [
+    ("Pay-to-apply", r"(application\s+fee|pay\s+(a\s+)?(small\s+)?(fee|deposit)|registration\s+fee|training\s+kit\s+cost)"),
+    ("Earn-huge-fast hype", r"(earn\s+\$?\d{3,}\s+(per\s+day|daily|weekly)|make\s+\d+k?\s+/?\s*(month|week)\s+from\s+home)"),
+    ("Pressure tactics", r"(immediate\s+start\s+required|only\s+\d+\s+slots|act\s+now|apply\s+within\s+24\s*(hours|h))"),
+    ("Vague employer", r"(our\s+prestigious\s+client|global\s+leader\s+in\s+multiple\s+industries)"),
+]
+
+WORK_AUTH_RULES = [
+    ("No sponsorship stated", r"(no\s+(visa\s+)?sponsorship|sponsorship\s+(is\s+)?not\s+(available|offered|provided)|does\s+not\s+offer\s+sponsorship)"),
+    ("Work authorization required", r"(must\s+(be|hold)[^.]?(authorized\s+to\s+work|right\s+to\s+work|valid\s+work\s+(permit|visa)))"),
+]
+
+
+def _match_rules(rules: list[tuple[str, str]], haystack: str) -> list[str]:
+    hits = []
+    low = (haystack or "").lower()
+    for name, pattern in rules:
+        if re.search(pattern, low):
+            hits.append(name)
+    return hits
+
+
+def content_flags(title: str, description: str) -> tuple[list[str], list[str]]:
+    """Return (legitimacy_warnings, work_auth_signals) for a posting."""
+    blob = f"{title}\n{description[:4000]}"
+    return _match_rules(SCAM_RULES, blob), _match_rules(WORK_AUTH_RULES, blob)
