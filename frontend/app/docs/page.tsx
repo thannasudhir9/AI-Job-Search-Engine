@@ -32,6 +32,9 @@ CAREER-OPS INSPIRED FEATURES (github.com/santifer/career-ops)
 - One-click COVER LETTER generation per job (PDF).
 - Recruiter OUTREACH EMAIL drafts with copy-to-clipboard (draft-only).
 
+Full career-ops feature inventory + our integration roadmap:
+see CAREER_OPS_FEATURES.md in the repo root.
+
 QUICK START
     powershell -ExecutionPolicy Bypass -File .\\start.ps1
     open http://localhost:3000          (API docs at :8000/docs)

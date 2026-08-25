@@ -83,6 +83,7 @@ On-disk docs:
 | File | Contents |
 |---|---|
 | [`PLAN.md`](PLAN.md) | original build plan (phases, stack decisions) |
+| [`CAREER_OPS_FEATURES.md`](CAREER_OPS_FEATURES.md) | full feature inventory of santifer/career-ops + our integration roadmap |
 | [`COMMANDS.md`](COMMANDS.md) | every important command used while building, chronological |
 | [`scripts/dev/`](scripts/dev/) | all development/probe/test scripts used during the build |
 | [`backend/app/services/llm.py`](backend/app/services/llm.py) | the exact LLM prompts used for resume tailoring |
